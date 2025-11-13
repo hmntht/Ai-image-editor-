@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Visual Transmutation Forge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Base styles for a magical, dark theme */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d0a1b; /* Deep Indigo */
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 90%;
+            width: 100%;
+        }
+        h1, h2 {
+            font-family: 'Cinzel', serif;
+            color: #ffd700; /* Gold */
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+        }
+        /* Custom Button Styling */
+        .magic-btn {
+            background: linear-gradient(145deg, #4b0082, #2c004a); /* Violet to Deep Purple */
+            color: #ffd700;
+            border: 2px solid #ffd700;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+        .magic-btn:hover {
+            background: linear-gradient(145deg, #2c004a, #4b0082);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            transform: translateY(-2px);
+        }
+        /* Card for input/output */
+        .magic-card {
+            background-color: #1a172a; /* Slightly lighter indigo for contrast */
+            border: 1px solid rgba(75, 0, 130, 0.5); /* Violet border */
+            box-shadow: 0 0 20px rgba(75, 0, 130, 0.2);
+        }
+        /* Loading Spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #ffd700;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container mx-auto p-4 md:p-8 space-y-8">
+        <header class="text-center">
+            <h1 class="text-3xl md:text-5xl font-bold mb-2">The Visual Transmutation Forge</h1>
+            <p class="text-xl text-[#9370db]">Alchemize Images with Arcane Prompts</p>
+        </header>
+
+        <!-- Input and Control Panel -->
+        <div class="magic-card p-6 rounded-xl space-y-6">
+            <h2 class="text-2xl font-semibold mb-4 text-[#9370db]"><i class="fas fa-scroll mr-2"></i> The Incantation</h2>
+            
+            <!-- File Upload -->
+            <div>
+                <label for="imageUpload" class="block text-sm font-medium text-[#c0c0c0] mb-2">Source Artifact (Upload Image):</label>
+                <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp" class="block w-full text-sm text-[#c0c0c0] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#4b0082] file:text-white hover:file:bg-[#6a0dad]">
+            </div>
+
+            <!-- Prompt Input -->
+            <div>
+                <label for="promptInput" class="block text-sm font-medium text-[#c0c0c0] mb-2">Transmutation Spell (Prompt):</label>
+                <textarea id="promptInput" rows="3" placeholder="Example: Separate the main figure from the wall and place her on a moonlit forest path, photorealistic, cinematic lighting." class="w-full p-3 rounded-lg bg-[#0d0a1b] border border-gray-700 text-white focus:ring-[#ffd700] focus:border-[#ffd700]"></textarea>
+            </div>
+
+            <!-- Transmutation Button -->
+            <button id="generateBtn" class="magic-btn w-full py-3 rounded-lg text-lg font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed">
+                <span id="btnText"><i class="fas fa-magic mr-2"></i> Forge Transmutation</span>
+                <span id="spinner" class="spinner hidden"></span>
+            </button>
+            
+            <div id="statusMessage" class="text-center text-sm mt-4 text-red-400 hidden"></div>
+        </div>
+
+        <!-- Output Display -->
+        <div class="magic-card p-6 rounded-xl">
+            <h2 class="text-2xl font-semibold mb-4 text-[#9370db]"><i class="fas fa-gem mr-2"></i> Resultant Artifact</h2>
+            <div id="outputContainer" class="flex justify-center items-center min-h-[300px] border border-dashed border-gray-600 rounded-lg p-4">
+                <p id="placeholderText" class="text-gray-500">The Transmuted Artifact will appear here...</p>
+                <img id="resultImage" class="max-w-full h-auto rounded-lg shadow-xl hidden" style="border: 4px solid #ffd700;">
+            </div>
+            <div class="mt-4 text-center">
+                <button id="downloadBtn" class="magic-btn py-2 px-4 rounded-lg text-sm hidden" disabled>
+                    <i class="fas fa-download mr-2"></i> Retrieve Artifact
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Client-side code to handle file upload and API calls
+        const PROXY_URL = '/api/proxy'; // Endpoint on your App Engine server
+        const generateBtn = document.getElementById('generateBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const imageUpload = document.getElementById('imageUpload');
+        const promptInput = document.getElementById('promptInput');
+        const resultImage = document.getElementById('resultImage');
+        const placeholderText = document.getElementById('placeholderText');
+        const statusMessage = document.getElementById('statusMessage');
+        const btnText = document.getElementById('btnText');
+        const spinner = document.getElementById('spinner');
+
+        let uploadedBase64Data = null;
+        let uploadedMimeType = null;
+        let resultBase64Data = null;
+
+        // --- Utility Functions ---
+
+        function setStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.className = isError ? 'text-center text-sm mt-4 text-red-400' : 'text-center text-sm mt-4 text-green-400';
+            statusMessage.classList.remove('hidden');
+        }
+
+        function setProcessingState(processing) {
+            generateBtn.disabled = processing;
+            imageUpload.disabled = processing;
+            promptInput.disabled = processing;
+            btnText.classList.toggle('hidden', processing);
+            spinner.classList.toggle('hidden', !processing);
+        }
+
+        // --- Event Handlers ---
+
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                uploadedBase64Data = null;
+                uploadedMimeType = null;
+                return;
+            }
+
+            uploadedMimeType = file.type;
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                // Extract Base64 part after the comma (e.g., "data:image/jpeg;base64,***")
+                const base64String = event.target.result;
+                uploadedBase64Data = base64String.split(',')[1];
+                
+                // Show a preview of the uploaded image
+                resultImage.src = base64String;
+                resultImage.classList.remove('hidden');
+                placeholderText.classList.add('hidden');
+                setStatus("Source Artifact Uploaded. Enter your Transmutation Spell and Forge!", false);
+            };
+
+            reader.onerror = () => {
+                setStatus("Error reading file.", true);
+                uploadedBase64Data = null;
+            };
+
+            reader.readAsDataURL(file);
+        });
+
+        generateBtn.addEventListener('click', async () => {
+            if (!uploadedBase64Data) {
+                setStatus("Please upload a Source Artifact (image) first.", true);
+                return;
+            }
+            if (!promptInput.value.trim()) {
+                setStatus("Please enter a Transmutation Spell (prompt).", true);
+                return;
+            }
+
+            setProcessingState(true);
+            resultImage.classList.add('hidden');
+            downloadBtn.classList.add('hidden');
+            placeholderText.classList.remove('hidden');
+            placeholderText.textContent = "Forging in Progress... This may take up to 30 seconds.";
+            setStatus("Sending request to the Alchemy Engine...", false);
+            
+            try {
+                const payload = {
+                    prompt: promptInput.value.trim(),
+                    imageData: uploadedBase64Data,
+                    mimeType: uploadedMimeType
+                };
+
+                // The request goes to the server.js proxy
+                const response = await fetch(PROXY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    const errorMessage = data.error || `Server responded with status ${response.status}.`;
+                    throw new Error(errorMessage);
+                }
+
+                resultBase64Data = data.base64Data;
+                const finalImageUrl = `data:image/png;base64,${resultBase64Data}`;
+                
+                resultImage.src = finalImageUrl;
+                resultImage.classList.remove('hidden');
+                placeholderText.classList.add('hidden');
+                downloadBtn.href = finalImageUrl;
+                downloadBtn.download = "transmuted_artifact.png";
+                downloadBtn.classList.remove('hidden');
+                downloadBtn.disabled = false;
+                setStatus("Transmutation Complete! Artifact Retrieved.", false);
+
+            } catch (error) {
+                console.error("Transmutation Failed:", error);
+                resultImage.src = '';
+                resultImage.classList.add('hidden');
+                placeholderText.textContent = "Transmutation Failed. Try refining your spell.";
+                downloadBtn.classList.add('hidden');
+                setStatus(`Failure: ${error.message}`, true);
+            } finally {
+                setProcessingState(false);
+            }
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (resultBase64Data) {
+                // Forcing download via programmatic click on a temporary anchor element
+                const link = document.createElement('a');
+                link.href = resultImage.src;
+                link.download = 'transmuted_artifact.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+    </script>
+</body>
+</html>
+
+
