@@ -1,0 +1,7 @@
+runtime: nodejs20 # Specify the Node.js runtime version
+entrypoint: node server.js # Tell App Engine to run our server.js file
+instance_class: F1 # Use the smallest instance class (covered by the free tier)
+
+env_variables:
+  # This is a placeholder. You must set the real key in the GCP Console deployment settings.
+  GEMINI_API_KEY: 'SET_YOUR_API_KEY_IN_GCP_SETTINGS' 
